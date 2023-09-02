@@ -72,7 +72,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
   uploadImage(XFile image) async {
     var formData = FormData();
     var dio = Dio();
-    dio.options.headers["X-Api-Key"] = "CpzMKjyTspDF1AoFeZrrZQm6";
+    dio.options.headers["X-Api-Key"] = "o347TWgq7GeP4f2cTpp4WG5x";
     try {
       if (kIsWeb) {
         var bytes = await image.readAsBytes();
