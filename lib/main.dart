@@ -1,21 +1,18 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
-import 'dart:html' as html;
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
-import 'package:dio/dio.dart';
 import 'package:http/http.dart' as http;
 import 'home_page.dart';
+import 'package:image_picker/image_picker.dart';
 import 'modeels/region_model.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final cameras = await availableCameras();
   final firstCamera = cameras.first;
-
   runApp(
     MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -59,17 +56,17 @@ class TakePictureScreenState extends State<TakePictureScreen> {
   var dropdownRegionList = ['Tashkent', 'Moscow', 'New York'];
   var regionId = [1, 2, 3];
   int regionIndex = 0;
-
   String selectedOption = 'rezident';
   var selectedCountry = 'USA';
   var selectedRegion = 'Tashkent';
+  bool? sendData = false;
 
   static const String _url = 'https://api.teda.uz:72';
   var _result;
 
   var _cropImage;
 
-  uploadImage(XFile image) async {
+  /*uploadImage(XFile image) async {
     var formData = FormData();
     var dio = Dio();
     dio.options.headers["X-Api-Key"] = "o347TWgq7GeP4f2cTpp4WG5x";
@@ -95,9 +92,9 @@ class TakePictureScreenState extends State<TakePictureScreen> {
       showToast('Error', 'Limit is over', Colors.red);
       return "";
     }
-  }
+  }*/
 
-  var files;
+  Uint8List? files;
 
   showCamera() {
     showDialog(
@@ -109,6 +106,36 @@ class TakePictureScreenState extends State<TakePictureScreen> {
           ),
           title: Column(
             children: [
+              Row(
+                children: [
+                  const Expanded(child: SizedBox()),
+                  Container(
+                    width: MediaQuery.of(context).size.width * 0.04,
+                    height: MediaQuery.of(context).size.height * 0.04,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(100),
+                      color: Colors.deepPurple[800],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(100),
+                      child: InkWell(
+                        onTap: () {
+                          _controller.dispose();
+                          pop();
+                          initState();
+                        },
+                        child: const Center(
+                          child: Icon(
+                            Icons.close,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                ],
+              ),
+              SizedBox(height: MediaQuery.of(context).size.height * 0.02),
               Container(
                 width: MediaQuery.of(context).size.width * 0.4,
                 height: MediaQuery.of(context).size.height * 0.5,
@@ -124,8 +151,8 @@ class TakePictureScreenState extends State<TakePictureScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    width: MediaQuery.of(context).size.width * 0.2,
+                  /*Container(
+                    width: MediaQuery.of(context).size.width * 0.1,
                     height: MediaQuery.of(context).size.height * 0.05,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
@@ -146,6 +173,29 @@ class TakePictureScreenState extends State<TakePictureScreen> {
                         ),
                       ),
                     ),
+                  ),*/
+                  //SizedBox(width: MediaQuery.of(context).size.width * 0.02),
+                  //file select button
+                  Container(
+                    width: MediaQuery.of(context).size.width * 0.2,
+                    height: MediaQuery.of(context).size.height * 0.05,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      color: Colors.deepPurple[800],
+                    ),
+                    child: TextButton(
+                      onPressed: () {
+                        showFileSelect();
+                      },
+                      child: Text(
+                        'Select',
+                        style: TextStyle(
+                          fontSize: MediaQuery.of(context).size.width * 0.02,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   ),
                   SizedBox(width: MediaQuery.of(context).size.width * 0.02),
                   Container(
@@ -159,19 +209,20 @@ class TakePictureScreenState extends State<TakePictureScreen> {
                       onPressed: () async {
                         try {
                           await _initializeControllerFuture;
-                          final image = await _controller.takePicture();
-                          final uploadedImageResp = await uploadImage(image);
+                          //final image = await _controller.takePicture();
+                          /*final uploadedImageResp = await uploadImage(image);
                           if (uploadedImageResp.runtimeType == String) {
                             errorMessage = "Failed to upload image";
                             showToast('Error', errorMessage, Colors.red);
                             return;
                           }
-                          removeBg(uploadedImageResp, image.path);
-                          files = image.path;
+                          removeBg(uploadedImageResp, image.path);*/
+                          final XFile photo = await _controller.takePicture();
+                          files = await photo.readAsBytes();
                           setState(() {
-                            _result = uploadedImageResp;
+                            _result = files;
                           });
-
+                          pop();
                         } catch (e) {
                           pop();
                           showToast('Error', 'Limit is over', Colors.red);
@@ -196,7 +247,19 @@ class TakePictureScreenState extends State<TakePictureScreen> {
     );
   }
 
-  removeBg(List<int> uploadedImage, String imagePath) {
+  showFileSelect() async {
+    //file select dialog
+    final XFile? image = await ImagePicker().pickImage(
+      source: ImageSource
+          .gallery, // You can also use ImageSource.camera to capture a photo.
+    );
+
+    if (image != null) {
+      print('Selected image path: ${image.path}');
+    }
+  }
+
+  /*removeBg(List<int> uploadedImage, String imagePath) {
     Image image;
     if (kIsWeb) {
       image = Image.network(imagePath);
@@ -213,9 +276,12 @@ class TakePictureScreenState extends State<TakePictureScreen> {
       _result = uploadedImage;
     });
     pop();
-  }
+  }*/
 
   Future<void> addUser() async {
+    setState(() {
+      sendData = true;
+    });
     var request = http.MultipartRequest('POST', Uri.parse('$_url/api/user'));
     request.fields.addAll({
       'fio': _fioController.text,
@@ -228,6 +294,15 @@ class TakePictureScreenState extends State<TakePictureScreen> {
       'regionId': regionId[regionIndex].toString(),
       'resident': selectedOption == 'rezident' ? 'true' : 'false',
     });
+    /*request.files.add(
+      http.MultipartFile.fromBytes(
+        'photo',
+        _result!,
+        filename: 'pic-name.png',
+      ),
+    );*/
+    //_result == blob files to Uint8List
+
     request.files.add(
       http.MultipartFile.fromBytes(
         'photo',
@@ -238,7 +313,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
 
     var response = await request.send();
 
-    if (response.statusCode == 200||response.statusCode == 201) {
+    if (response.statusCode == 200 || response.statusCode == 201) {
       var data = json.decode(await response.stream.bytesToString());
       if (data['success']) {
         showToast('Success', 'User added successfully', Colors.green);
@@ -249,6 +324,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
     } else {
       showToast('Error', 'User not added', Colors.red);
     }
+    sendData = false;
   }
 
   Future<void> getRegion() async {
@@ -309,7 +385,6 @@ class TakePictureScreenState extends State<TakePictureScreen> {
     }
   }
 
-
   pushReplacement() {
     Navigator.pushReplacement(
       context,
@@ -318,9 +393,19 @@ class TakePictureScreenState extends State<TakePictureScreen> {
       ),
     );
   }
+
   pop() {
     Navigator.pop(context);
   }
+
+  push() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+          builder: (context) => TakePictureScreen(camera: widget.camera)),
+    );
+  }
+
   showToast(String title, String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -357,7 +442,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
     super.dispose();
   }
 
-  @override
+  /* @override
   Widget build(BuildContext context) {
     var w = MediaQuery.of(context).size.width;
     var h = MediaQuery.of(context).size.width;
@@ -373,34 +458,32 @@ class TakePictureScreenState extends State<TakePictureScreen> {
                 children: [
                   SizedBox(width: w * 0.03),
                   Container(
-                    width: w * 0.04,
-                    height: w * 0.04,
+                    width: w * 0.03,
+                    height: w * 0.03,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
                       image: const DecorationImage(
-                        image: AssetImage('assets/images/logo.jpg'),
+                        image: AssetImage('assets/images/logo1.jpg'),
                         fit: BoxFit.cover,
                       ),
                     ),
                   ),
-                  SizedBox(width: w * 0.03),
-                  Text(
-                    'Teda',
-                    style: TextStyle(
-                      fontSize: w * 0.025,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                  SizedBox(width: w * 0.01),
+                  Container(
+                    width: w * 0.06,
+                    height: h * 0.02,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      image: const DecorationImage(
+                        image: AssetImage('assets/images/text.png'),
+                        fit: BoxFit.fill,
+                      ),
                     ),
                   ),
                 ],
               ),
               const Expanded(child: SizedBox()),
-              IconButton(
-                iconSize: w * 0.04,
-                onPressed: () {
-                },
-                icon: const Icon(Icons.language, color: Colors.white),
-              ),
+
             ],
           ),
         ),
@@ -414,7 +497,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
               children: [
                 SizedBox(height: h * 0.05),
                 Text(
-                  'Register',
+                  'Registration',
                   style: TextStyle(
                     fontSize: w * 0.03,
                     fontWeight: FontWeight.bold,
@@ -449,7 +532,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
                                   ),
                                   decoration: InputDecoration(
                                     border: InputBorder.none,
-                                    hintText: 'FIO',
+                                    hintText: 'Full name',
                                     hintStyle: TextStyle(
                                       fontSize: w * 0.02,
                                       color: Colors.grey,
@@ -555,12 +638,24 @@ class TakePictureScreenState extends State<TakePictureScreen> {
                                       ClipRRect(
                                         borderRadius: BorderRadius.circular(10),
                                         child: Image.memory(
-                                            Uint8List.fromList(_result),
-                                            width: w * 0.15,
-                                            height: h * 0.22,
-                                            fit: BoxFit.cover),
+                                          _result!,
+                                          width: w * 0.15,
+                                          height: h * 0.22,
+                                          fit: BoxFit.cover,
+                                        ),
                                       ),
-                                    if (_result == null)
+
+                                    */ /*if (files != null)
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: Image.network(
+                                          files,
+                                          width: w * 0.15,
+                                          height: h * 0.22,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),*/ /*
+                                    if (files == null)
                                       Icon(Icons.camera_alt,
                                           size: w * 0.05, color: Colors.grey),
                                   ],
@@ -574,33 +669,34 @@ class TakePictureScreenState extends State<TakePictureScreen> {
                   ),
                 ),
                 SizedBox(height: h * 0.02),
-                Row(
-                  children: [
-                    SizedBox(width: w * 0.2),
-                    Radio(
-                      value: 'rezident',
-                      groupValue: selectedOption,
-                      onChanged: (value) {
-                        setState(() {
-                          selectedOption = value!;
-                        });
-                      },
-                    ),
-                    Text('Rezident',
-                        style: TextStyle(fontSize: w * 0.02, color: Colors.white)),
-                    SizedBox(width: w * 0.03),
-                    Radio(
-                      value: 'nonrezident',
-                      groupValue: selectedOption,
-                      onChanged: (value) {
-                        setState(() {
-                          selectedOption = value!;
-                        });
-                      },
-                    ),
-                    Text('Nonrezident',
-                        style: TextStyle(fontSize: w * 0.02, color: Colors.white)),
-                  ],
+                SizedBox(
+                  width: w * 0.585,
+                  child: Row(
+                    children: [
+                      Radio(
+                        value: 'rezident',
+                        groupValue: selectedOption,
+                        onChanged: (value) {
+                          setState(() {
+                            selectedOption = value!;
+                          });
+                        },
+                      ),
+                      Text('Resident', style: TextStyle(fontSize: w * 0.02, color: Colors.white)),
+                      SizedBox(width: w * 0.03),
+                      Radio(
+                        value: 'nonrezident',
+                        groupValue: selectedOption,
+                        onChanged: (value) {
+                          setState(() {
+                            selectedOption = value!;
+                          });
+                        },
+                      ),
+                      Text('Non-resident', style: TextStyle(fontSize: w * 0.02, color: Colors.white)),
+                      const Expanded(child: SizedBox()),
+                    ],
+                  ),
                 ),
                 SizedBox(height: h * 0.02),
                 if (selectedOption == 'rezident')
@@ -749,10 +845,34 @@ class TakePictureScreenState extends State<TakePictureScreen> {
                   ),
                   child: TextButton(
                     onPressed: () {
+                      if (_fioController.text.isEmpty) {
+                        showToast('Error', 'FIO is empty', Colors.red);
+                        return;
+                      }
+                      if (_emailController.text.isEmpty) {
+                        showToast('Error', 'Email is empty', Colors.red);
+                        return;
+                      }
+                      if (_phoneNumberController.text.isEmpty) {
+                        showToast('Error', 'Phone number is empty', Colors.red);
+                        return;
+                      }
+                      if (_companyNameController.text.isEmpty) {
+                        showToast('Error', 'Company name is empty', Colors.red);
+                        return;
+                      }
+                      if (_positionController.text.isEmpty) {
+                        showToast('Error', 'Position is empty', Colors.red);
+                        return;
+                      }
+                      if (_result == null) {
+                        showToast('Error', 'Image is empty', Colors.red);
+                        return;
+                      }
                       addUser();
                     },
                     child: Text(
-                      'Register',
+                      'Send',
                       style: TextStyle(
                         fontSize: w * 0.02,
                         color: Colors.white,
@@ -768,6 +888,537 @@ class TakePictureScreenState extends State<TakePictureScreen> {
             return const Center(child: CircularProgressIndicator());
           }
         },
+      ),
+    );
+  }*/
+
+  @override
+  Widget build(BuildContext context) {
+    var w = MediaQuery.of(context).size.width;
+    var h = MediaQuery.of(context).size.width;
+    var cardHeight = h < 500
+        ? h * 1.2
+        : w * 0.7 < 600
+            ? w * 0.7
+            : w * 0.5 < 600
+                ? w * 0.6
+                : w * 0.3 < 600
+                    ? w * 0.5
+                    : w * 0.2;
+    var cardWidth = w < 500
+        ? w * 0.8
+        : w * 0.5 < 600
+            ? w * 0.5
+            : w * 0.3 < 600
+                ? w * 0.3
+                : w * 0.2;
+    return Scaffold(
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(55),
+        child: Center(
+          child: AppBar(
+            backgroundColor: Colors.black,
+            elevation: 0,
+            actions: [
+              InkWell(
+                onTap: () async {
+                  push();
+                },
+                child: Row(
+                  children: [
+                    SizedBox(width: w * 0.03),
+                    Container(
+                      width: w * 0.03 < 30 ? 30 : w * 0.03,
+                      height: w * 0.03 < 30 ? 30 : w * 0.03,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        image: const DecorationImage(
+                          image: AssetImage('assets/images/logo1.jpg'),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: w * 0.01),
+                    Container(
+                      width: w * 0.06,
+                      height: h * 0.02,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        image: const DecorationImage(
+                          image: AssetImage('assets/images/text.png'),
+                          fit: BoxFit.fill,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Expanded(child: SizedBox()),
+            ],
+          ),
+        ),
+      ),
+      body: Container(
+        height: w * 1.5,
+        width: w,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/fon_0.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SingleChildScrollView(
+            child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(height: h * 0.05),
+            Container(
+              width: cardWidth,
+              height: cardHeight,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                color: const Color(0xff23568c),
+                shape: BoxShape.rectangle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    spreadRadius: 5,
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: FutureBuilder<void>(
+                  future: _initializeControllerFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done) {
+                      return Column(
+                        children: [
+                          SizedBox(height: cardHeight * 0.03),
+                          Text(
+                            'Registration',
+                            style: TextStyle(
+                              fontSize: cardWidth * 0.05,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+
+                          //CircleAvatar for image
+                          SizedBox(height: cardHeight * 0.03),
+                          InkWell(
+                            onTap: () {
+                              showCamera();
+                            },
+                            child: Container(
+                              width: cardWidth * 0.25,
+                              height: cardWidth * 0.25,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(1000),
+                                color: Colors.white,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  if (_result != null)
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(1000),
+                                      child: Image.memory(
+                                        _result!,
+                                        width: cardWidth * 0.25,
+                                        height: cardWidth * 0.25,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  if (files == null)
+                                    Icon(Icons.camera_alt,
+                                        size: cardWidth * 0.05,
+                                        color: Colors.grey),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          SizedBox(height: h * 0.03),
+                          Container(
+                            width: cardWidth * 0.9,
+                            height: cardHeight * 0.06,
+                            padding: EdgeInsets.only(left: cardWidth * 0.005),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              color: Colors.grey[200],
+                            ),
+                            child: Center(
+                              child: TextField(
+                                controller: _fioController,
+                                style: TextStyle(
+                                  fontSize: cardWidth * 0.04,
+                                  color: Colors.black,
+                                ),
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: 'Full name',
+                                  hintStyle: TextStyle(
+                                    fontSize: cardWidth * 0.04,
+                                    color: Colors.grey,
+                                  ),
+                                  prefixIcon: Icon(
+                                    size: cardWidth * 0.05,
+                                    Icons.person,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: cardHeight * 0.02),
+                          Container(
+                            width: cardWidth * 0.9,
+                            height: cardHeight * 0.06,
+                            padding: EdgeInsets.only(left: cardWidth * 0.005),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              color: Colors.grey[200],
+                            ),
+                            child: Center(
+                              child: TextField(
+                                controller: _emailController,
+                                style: TextStyle(
+                                  fontSize: cardWidth * 0.04,
+                                  color: Colors.black,
+                                ),
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: 'Email',
+                                  hintStyle: TextStyle(
+                                    fontSize: cardWidth * 0.04,
+                                    color: Colors.grey,
+                                  ),
+                                  prefixIcon: Icon(
+                                    size: cardWidth * 0.05,
+                                    Icons.email,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: cardHeight * 0.02),
+                          Container(
+                            width: cardWidth * 0.9,
+                            height: cardHeight * 0.06,
+                            padding: EdgeInsets.only(left: cardWidth * 0.005),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              color: Colors.grey[200],
+                            ),
+                            child: Center(
+                              child: TextField(
+                                controller: _phoneNumberController,
+                                style: TextStyle(
+                                  fontSize: cardWidth * 0.04,
+                                  color: Colors.black,
+                                ),
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: 'Phone number',
+                                  hintStyle: TextStyle(
+                                    fontSize: cardWidth * 0.04,
+                                    color: Colors.grey,
+                                  ),
+                                  prefixIcon: Icon(
+                                    size: cardWidth * 0.05,
+                                    Icons.phone,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: cardHeight * 0.02),
+                          //rezident or non-rezident
+                          SizedBox(
+                            width: cardWidth * 0.9,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Radio(
+                                  value: 'rezident',
+                                  groupValue: selectedOption,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      selectedOption = value!;
+                                    });
+                                  },
+                                ),
+                                Text('Resident',
+                                    style: TextStyle(
+                                        fontSize: cardWidth * 0.04,
+                                        color: Colors.white)),
+                                SizedBox(width: cardWidth * 0.03),
+                                Radio(
+                                  value: 'nonrezident',
+                                  groupValue: selectedOption,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      selectedOption = value!;
+                                    });
+                                  },
+                                ),
+                                Text('Non-resident',
+                                    style: TextStyle(
+                                        fontSize: cardWidth * 0.04,
+                                        color: Colors.white)),
+                                const Expanded(child: SizedBox()),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: cardHeight * 0.02),
+                          if (selectedOption == 'rezident')
+                            if (region.isNotEmpty)
+                              Container(
+                                width: cardWidth * 0.9,
+                                height: cardHeight * 0.06,
+                                padding: EdgeInsets.only(
+                                    left: cardWidth * 0.02,
+                                    right: cardWidth * 0.02),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  color: Colors.grey[200],
+                                ),
+                                child: Center(
+                                  child: DropdownButton(
+                                    underline: const SizedBox(),
+                                    isExpanded: true,
+                                    dropdownColor: Colors.grey[200],
+                                    iconEnabledColor: Colors.black,
+                                    iconDisabledColor: Colors.black,
+                                    value: selectedRegion,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        selectedRegion = value.toString();
+                                        regionIndex =
+                                            dropdownRegionList.indexOf(value!);
+                                      });
+                                    },
+                                    items: dropdownRegionList.map((e) {
+                                      return DropdownMenuItem(
+                                        value: e,
+                                        child: Text(e,
+                                            style: TextStyle(
+                                                fontSize: cardWidth * 0.04,
+                                                color: Colors.black)),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              ),
+                          if (selectedOption != 'rezident')
+                            if (region.isNotEmpty)
+                              Container(
+                                width: cardWidth * 0.9,
+                                height: cardHeight * 0.06,
+                                padding: EdgeInsets.only(
+                                    left: cardWidth * 0.02,
+                                    right: cardWidth * 0.02),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  color: Colors.grey[200],
+                                ),
+                                child: Center(
+                                  child: DropdownButton(
+                                    underline: const SizedBox(),
+                                    isExpanded: true,
+                                    dropdownColor: Colors.grey[200],
+                                    iconEnabledColor: Colors.black,
+                                    iconDisabledColor: Colors.black,
+                                    value: selectedCountry,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        selectedCountry = value.toString();
+                                        countryIndex =
+                                            dropdownCountryList.indexOf(value!);
+                                      });
+                                    },
+                                    items: dropdownCountryList.map((e) {
+                                      return DropdownMenuItem(
+                                        value: e,
+                                        child: Text(e,
+                                            style: TextStyle(
+                                                fontSize: cardWidth * 0.04,
+                                                color: Colors.black)),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              ),
+                          if (region.isNotEmpty || country.isNotEmpty)
+                            SizedBox(height: cardHeight * 0.02),
+                          Container(
+                            width: cardWidth * 0.9,
+                            height: cardHeight * 0.06,
+                            padding: EdgeInsets.only(
+                                left: cardWidth * 0.005,
+                                right: cardWidth * 0.02),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              color: Colors.grey[200],
+                            ),
+                            child: Center(
+                              child: TextField(
+                                controller: _companyNameController,
+                                style: TextStyle(
+                                  fontSize: cardWidth * 0.04,
+                                  color: Colors.black,
+                                ),
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: 'Company name',
+                                  hintStyle: TextStyle(
+                                    fontSize: cardWidth * 0.04,
+                                    color: Colors.grey,
+                                  ),
+                                  prefixIcon: Icon(
+                                    size: cardWidth * 0.05,
+                                    Icons.business,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: cardHeight * 0.02),
+                          Container(
+                            width: cardWidth * 0.9,
+                            height: cardHeight * 0.06,
+                            padding: EdgeInsets.only(
+                                left: cardWidth * 0.005,
+                                right: cardWidth * 0.02),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              color: Colors.grey[200],
+                            ),
+                            child: Center(
+                              child: TextField(
+                                controller: _positionController,
+                                style: TextStyle(
+                                  fontSize: cardWidth * 0.04,
+                                  color: Colors.black,
+                                ),
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: 'Position',
+                                  hintStyle: TextStyle(
+                                    fontSize: cardWidth * 0.04,
+                                    color: Colors.grey,
+                                  ),
+                                  prefixIcon: Icon(
+                                    size: cardWidth * 0.05,
+                                    Icons.work,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          SizedBox(height: cardHeight * 0.02),
+                          //sendData == false
+                          if (!sendData!)
+                            Container(
+                              width: cardWidth * 0.9,
+                              height: cardHeight * 0.06,
+                              decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  color: Colors.blue),
+                              child: TextButton(
+                                onPressed: () {
+                                  if (_fioController.text.isEmpty) {
+                                    showToast(
+                                        'Error', 'FIO is empty', Colors.red);
+                                    return;
+                                  }
+                                  if (_emailController.text.isEmpty) {
+                                    showToast(
+                                        'Error', 'Email is empty', Colors.red);
+                                    return;
+                                  }
+                                  if (_phoneNumberController.text.isEmpty) {
+                                    showToast('Error', 'Phone number is empty',
+                                        Colors.red);
+                                    return;
+                                  }
+                                  if (_companyNameController.text.isEmpty) {
+                                    showToast('Error', 'Company name is empty',
+                                        Colors.red);
+                                    return;
+                                  }
+                                  if (_positionController.text.isEmpty) {
+                                    showToast('Error', 'Position is empty',
+                                        Colors.red);
+                                    return;
+                                  }
+                                  if (_result == null) {
+                                    showToast(
+                                        'Error', 'Image is empty', Colors.red);
+                                    return;
+                                  }
+                                  addUser();
+                                },
+                                child: Text(
+                                  'Send',
+                                  style: TextStyle(
+                                    fontSize: cardWidth * 0.04,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          if (sendData!)
+                            Container(
+                                width: cardWidth * 0.9,
+                                height: cardHeight * 0.06,
+                                decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(10),
+                                    color: Colors.blue),
+                                child: SizedBox(
+                                  height: cardWidth * 0.06,
+                                  width: cardWidth * 0.06,
+                                  child: const Center(
+                                      child: CircularProgressIndicator(
+                                    color: Colors.black,
+                                    backgroundColor: Colors.white,
+                                  )),
+                                )),
+                        ],
+                      );
+                    } else {
+                      return Center(
+                          child: Card(
+                        shadowColor: Colors.black,
+                        color: Colors.white,
+                        shape: const RoundedRectangleBorder(
+                          side: BorderSide(color: Colors.white70, width: 1),
+                          borderRadius: BorderRadius.all(Radius.circular(10)),
+                        ),
+                        elevation: 10,
+                        child: Container(
+                          padding: EdgeInsets.all(cardWidth * 0.05),
+                          child: const CircularProgressIndicator(
+                            color: Colors.black,
+                            backgroundColor: Colors.white,
+                          ),
+                        ),
+                      ));
+                    }
+                  }),
+            ),
+            SizedBox(height: cardHeight * 0.05),
+          ],
+        )),
       ),
     );
   }
