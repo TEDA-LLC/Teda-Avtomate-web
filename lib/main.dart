@@ -408,22 +408,24 @@ class TakePictureScreenState extends State<TakePictureScreen> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(10),
                         image: const DecorationImage(
-                          image: AssetImage('assets/images/logo1.jpg'),
+                          image: AssetImage('assets/images/logo.jpg'),
                           fit: BoxFit.cover,
                         ),
                       ),
                     ),
                     SizedBox(width: w * 0.01),
-                    Container(
-                      width: w * 0.06,
-                      height: h * 0.02,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        image: const DecorationImage(
-                          image: AssetImage('assets/images/text.png'),
-                          fit: BoxFit.fill,
+                    SizedBox(
+                      width: w * 0.06 < 60 ? 60 : w * 0.06,
+                      height: h * 0.02 < 20 ? 20 : h * 0.02,
+                      child: Center(
+                        child: Text(
+                          'Teda',
+                          style: TextStyle(
+                            fontSize: w * 0.02 < 20 ? 20 : w * 0.02,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
+                      )
                     ),
                   ],
                 ),
